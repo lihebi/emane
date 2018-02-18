@@ -67,6 +67,8 @@ namespace EMANE
             u8Queue = 3;
           }
 
+        // lock the queue only use first queue
+        u8Queue = 0;
         return u8Queue;
       }
     }
