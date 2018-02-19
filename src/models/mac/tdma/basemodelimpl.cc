@@ -1078,6 +1078,15 @@ void EMANE::Models::TDMA::BaseModel::Implementation::sendDownstreamPacket(double
   size_t bytesAvailable =
     (slotDuration_.count() - slotOverhead_.count()) / 1000000.0 * pendingTxSlotInfo_.u64DataRatebps_ / 8.0;
 
+  LOGGER_STANDARD_LOGGING(pPlatformService_->logService(),
+                          DEBUG_LEVEL,
+                          "MACI %03hu TDMA::BaseModel::%s current slot dst is %hu",
+                          id_,
+                          __func__,
+                          pendingTxSlotInfo_.destination_);
+
+  NEMId dst = getDstByMaxWeight();
+
   auto entry = pQueueManager_->dequeue(pendingTxSlotInfo_.u8QueueId_,
                                        bytesAvailable,
                                        pendingTxSlotInfo_.destination_);
@@ -1324,4 +1333,22 @@ void EMANE::Models::TDMA::BaseModel::Implementation::processTxOpportunity(std::u
     }
 
   return;
+}
+
+EMANE::NEMId EMANE::Models::TDMA::BaseModel::Implementation::getDstByMaxWeight()
+{
+
+  auto qls = pQueueManager_->getDestQueueLength(0);
+  for (auto it=qls.begin(); it!=qls.end(); ++it) 
+  {
+    LOGGER_STANDARD_LOGGING(pPlatformService_->logService(),
+                            DEBUG_LEVEL,
+                            "MACI %03hu TDMA::BaseModel::%s Queue %hu has size %zu",
+                            id_,
+                            __func__,
+                            it->first,
+                            it->second);
+  }
+  return 0;
+
 }

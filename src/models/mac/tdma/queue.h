@@ -73,6 +73,8 @@ namespace EMANE
         // packets, bytes
         std::tuple<size_t,size_t> getStatus() const;
 
+        std::map<std::uint64_t,size_t> getDestQueueLength();
+
       private:
         class MetaInfo
         {

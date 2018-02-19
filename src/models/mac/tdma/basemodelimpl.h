@@ -140,6 +140,8 @@ namespace EMANE
         void sendDownstreamPacket(double dSlotRemainingRatio);
 
         void processTxOpportunity(std::uint64_t u64ScheduleIndex);
+
+        NEMId getDstByMaxWeight();
       };
     }
   }

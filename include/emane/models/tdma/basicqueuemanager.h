@@ -34,6 +34,7 @@
 #define EMANEMODELSTDMABASICQUEUEMANAGER_HEADER_
 
 #include "emane/models/tdma/queuemanager.h"
+#include <map>
 
 namespace EMANE
 {
@@ -75,6 +76,8 @@ namespace EMANE
                   NEMId destination) override;
 
         QueueInfos getPacketQueueInfo() const override;
+
+        std::map<std::uint64_t,size_t> getDestQueueLength(int priority) override;
 
       private:
         class Implementation;

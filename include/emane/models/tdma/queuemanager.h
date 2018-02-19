@@ -42,6 +42,7 @@
 #include "emane/models/tdma/packetstatuspublisheruser.h"
 
 #include <tuple>
+#include <map>
 
 namespace EMANE
 {
@@ -103,7 +104,13 @@ namespace EMANE
                 size_t length,
                 NEMId destination) = 0;
 
+        /**
+         * Get all destQueue length based on given priority.
+         * 
+         */
+        virtual std::map<std::uint64_t,size_t> getDestQueueLength(int priority) = 0;
 
+        
         /**
          * Gets queue status.
          *
