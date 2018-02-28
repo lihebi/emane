@@ -46,6 +46,10 @@
 #include "emane/controls/timestampcontrolmessage.h"
 #include "emane/controls/transmittercontrolmessage.h"
 
+#include "emane/utils/pathlossesholder.h"
+
+#include "emane/events/pathloss.h"
+
 #include "txslotinfosformatter.h"
 #include "basemodelmessage.h"
 #include "priority.h"
@@ -1348,6 +1352,34 @@ EMANE::NEMId EMANE::Models::TDMA::BaseModel::Implementation::getDstByMaxWeight()
                             __func__,
                             it->first,
                             it->second);
+  }
+
+  if (EMANE::Utils::initialized) 
+  {
+    EMANE::Events::Pathlosses pe = EMANE::Utils::pathlossesHolder;
+    for (auto const& it: pe) {
+      LOGGER_STANDARD_LOGGING(pPlatformService_->logService(),
+                              DEBUG_LEVEL,
+                              "MACI %03hu TDMA::BaseModel::%s pathloss of %hu is %f !",
+                              id_,
+                              __func__,
+                              it.getNEMId(),
+                              it.getForwardPathlossdB());
+    }
+    LOGGER_STANDARD_LOGGING(pPlatformService_->logService(),
+                            DEBUG_LEVEL,
+                            "MACI %03hu TDMA::BaseModel::%s pathloss is initialized!",
+                            id_,
+                            __func__);
+              
+  }
+  else
+  {
+    LOGGER_STANDARD_LOGGING(pPlatformService_->logService(),
+                            DEBUG_LEVEL,
+                            "MACI %03hu TDMA::BaseModel::%s pathloss not initialized yet!",
+                            id_,
+                            __func__);
   }
   return 0;
 

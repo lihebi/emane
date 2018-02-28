@@ -38,6 +38,7 @@
 #include "emane/spectrumserviceexception.h"
 
 #include "emane/utils/conversionutils.h"
+#include "emane/utils/pathlossesholder.h"
 
 #include "emane/events/antennaprofileevent.h"
 #include "emane/events/antennaprofileeventformatter.h"
@@ -779,6 +780,12 @@ void EMANE::FrameworkPHY::processDownstreamPacket(DownstreamPacket & pkt,
               {
                 // for convience a mac can set duration and offset without specifying frequency
                 // by using 0 Hz.
+                LOGGER_VERBOSE_LOGGING(pPlatformService_->logService(),
+                                   DEBUG_LEVEL,
+                                   "PHYI %03hu FrameworkPHY::%s ----txPowerDbm: %lf",
+                                   id_,
+                                   __func__,
+                                   segment.getPowerdBm().first);
                 if(segment.getFrequencyHz() == 0)
                   {
                     if(segment.getPowerdBm().second)
@@ -1406,6 +1413,10 @@ void EMANE::FrameworkPHY::processEvent(const EventId & eventId,
     case Events::PathlossEvent::IDENTIFIER:
       {
         Events::PathlossEvent pathlossEvent{serialization};
+
+        EMANE::Utils::pathlossesHolder = pathlossEvent.getPathlosses();
+
+        EMANE::Utils::initialized = true;
         pPropagationModelAlgorithm_->update(pathlossEvent.getPathlosses());
         eventTablePublisher_.update(pathlossEvent.getPathlosses());
 

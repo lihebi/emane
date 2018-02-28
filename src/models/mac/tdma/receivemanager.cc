@@ -189,10 +189,22 @@ EMANE::Models::TDMA::ReceiveManager::process(std::uint64_t u64AbsoluteSlotIndex)
 
           bool bSignalInNoise{};
 
+          LOGGER_VERBOSE_LOGGING(*pLogService_,
+                                 DEBUG_LEVEL,
+                                 "MACI %03hu TDMA::ReceiveManager RxPowerdBm-before %lf",
+                                 id_,
+                                 frequencySegment.getRxPowerdBm());
+
           std::tie(dNoiseFloordB,bSignalInNoise) =
             Utils::maxBinNoiseFloor(window,frequencySegment.getRxPowerdBm());
 
           dSINR = frequencySegment.getRxPowerdBm() - dNoiseFloordB;
+
+          LOGGER_VERBOSE_LOGGING(*pLogService_,
+                                 DEBUG_LEVEL,
+                                 "MACI %03hu TDMA::ReceiveManager RxPowerdBm-after %lf",
+                                 id_,
+                                 frequencySegment.getRxPowerdBm());
 
           LOGGER_VERBOSE_LOGGING(*pLogService_,
                                  DEBUG_LEVEL,

@@ -8,6 +8,7 @@ emaneinc_HEADERS =                       \
  netutils.h                              \
  parameterconvert.h                      \
  parameterconvert.inl                    \
+ pathlossesholder.h                      \
  randomnumberdistribution.h              \
  singleton.h                             \
  spectrumwindowutils.h                   \
