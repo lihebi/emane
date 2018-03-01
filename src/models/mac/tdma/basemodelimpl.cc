@@ -47,6 +47,7 @@
 #include "emane/controls/transmittercontrolmessage.h"
 
 #include "emane/utils/pathlossesholder.h"
+#include "emane/utils/conversionutils.h"
 
 #include "emane/events/pathloss.h"
 
@@ -904,6 +905,12 @@ void EMANE::Models::TDMA::BaseModel::Implementation::processDownstreamPacket(Dow
   std::uint8_t u8Queue{priorityToQueue(pkt.getPacketInfo().getPriority())};
 
   size_t packetsDropped{pQueueManager_->enqueue(u8Queue,std::move(pkt))};
+  LOGGER_STANDARD_LOGGING(pPlatformService_->logService(),
+                          DEBUG_LEVEL,
+                          "MACI %03hu TDMA::BaseModel:::%s: pkt droped size (droped:%hu)",
+                          id_,
+                          __func__,
+                          packetsDropped);
 
   // drop, replace token
   if(bFlowControlEnable_)
@@ -1084,16 +1091,17 @@ void EMANE::Models::TDMA::BaseModel::Implementation::sendDownstreamPacket(double
 
   LOGGER_STANDARD_LOGGING(pPlatformService_->logService(),
                           DEBUG_LEVEL,
-                          "MACI %03hu TDMA::BaseModel::%s current slot dst is %hu",
+                          "MACI %03hu TDMA::BaseModel::%s current slot dst is %hu, and can tx %hu bytes",
                           id_,
                           __func__,
-                          pendingTxSlotInfo_.destination_);
+                          pendingTxSlotInfo_.destination_,
+                          bytesAvailable);
 
   NEMId dst = getDstByMaxWeight();
 
   auto entry = pQueueManager_->dequeue(pendingTxSlotInfo_.u8QueueId_,
                                        bytesAvailable,
-                                       pendingTxSlotInfo_.destination_);
+                                       dst);
 
   MessageComponents & components = std::get<0>(entry);
   size_t totalSize{std::get<1>(entry)};
@@ -1354,24 +1362,34 @@ EMANE::NEMId EMANE::Models::TDMA::BaseModel::Implementation::getDstByMaxWeight()
                             it->second);
   }
 
+  EMANE::NEMId nemId{0};
+  double maxScore = 0;
+
   if (EMANE::Utils::initialized) 
   {
     EMANE::Events::Pathlosses pe = EMANE::Utils::pathlossesHolder;
-    for (auto const& it: pe) {
+    for (auto const& it: pe)
+    {
+      auto ql = qls.find(it.getNEMId());
+      if (ql == qls.end())
+      {
+        continue;
+      }
+      double score = EMANE::Utils::DB_TO_MILLIWATT(0-it.getForwardPathlossdB()) * ql->second;
+      if (score > maxScore)
+      {
+        nemId = it.getNEMId();
+        maxScore = score;
+      }
       LOGGER_STANDARD_LOGGING(pPlatformService_->logService(),
                               DEBUG_LEVEL,
-                              "MACI %03hu TDMA::BaseModel::%s pathloss of %hu is %f !",
+                              "MACI %03hu TDMA::BaseModel::%s pathloss of %hu is %f, and score: %f!",
                               id_,
                               __func__,
                               it.getNEMId(),
-                              it.getForwardPathlossdB());
-    }
-    LOGGER_STANDARD_LOGGING(pPlatformService_->logService(),
-                            DEBUG_LEVEL,
-                            "MACI %03hu TDMA::BaseModel::%s pathloss is initialized!",
-                            id_,
-                            __func__);
-              
+                              it.getForwardPathlossdB(),
+                              score);
+    }         
   }
   else
   {
@@ -1381,6 +1399,6 @@ EMANE::NEMId EMANE::Models::TDMA::BaseModel::Implementation::getDstByMaxWeight()
                             id_,
                             __func__);
   }
-  return 0;
+  return nemId;
 
 }
