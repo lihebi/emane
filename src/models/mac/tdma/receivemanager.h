@@ -95,6 +95,12 @@ namespace EMANE
 
         void process(std::uint64_t u64AbsoluteSlotIndex);
 
+        inline
+        std::map<std::uint64_t,std::map<std::uint64_t,size_t>> getNeighborQlen()
+        {
+          return neighborQlen_;
+        }
+
       private:
         NEMId id_;
         DownstreamTransport * pDownstreamTransport_;
@@ -133,6 +139,7 @@ namespace EMANE
 
         FragmentStore fragmentStore_;
         TimePoint lastFragmentCheckTime_;
+        std::map<std::uint64_t,std::map<std::uint64_t,size_t>> neighborQlen_;
 
         ReceiveManager(const ReceiveManager &) = delete;
 

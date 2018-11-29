@@ -44,6 +44,7 @@ message TDMABaseModelMessage
     {
       DATA = 1;
       CONTROL = 2;
+      QUEUELENGTH = 3;
     }
 
     message Fragment

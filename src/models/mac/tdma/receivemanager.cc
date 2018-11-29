@@ -52,7 +52,8 @@ EMANE::Models::TDMA::ReceiveManager::ReceiveManager(NEMId id,
   distribution_{0.0, 1.0},
   bPromiscuousMode_{},
   fragmentCheckThreshold_{2},
-  fragmentTimeoutThreshold_{5}{}
+  fragmentTimeoutThreshold_{5},
+  neighborQlen_{}{}
 
 void EMANE::Models::TDMA::ReceiveManager::setPromiscuousMode(bool bEnable)
 {
@@ -290,6 +291,57 @@ EMANE::Models::TDMA::ReceiveManager::process(std::uint64_t u64AbsoluteSlotIndex)
         {
           NEMId dst{message.getDestination()};
           Priority priority{message.getPriority()};
+
+
+          if(message.getType() == MessageComponent::Type::QUEUELENGTH) {
+            std::map<std::uint64_t,size_t> tmpNeighborQlen;
+            std::uint64_t dst = 0;
+            std::size_t qlen = 0;
+            NEMId srcId = 0;
+            bool hasDst = false;
+            bool hasId = false;
+            const auto & data = message.getData();
+            for (auto c : data){
+              LOGGER_VERBOSE_LOGGING(*pLogService_,
+                                    DEBUG_LEVEL,
+                                    "MACI %03hu TDMA:: %hu @#@#@#@ %c",
+                                    id_,
+                                    c,
+                                    c);
+                                    
+              if (c == ':') {
+                hasDst = true;
+              } else if (c == '#'){
+                tmpNeighborQlen.insert(std::pair<std::uint64_t,size_t>(srcId, 0));
+                hasId = true;
+              } else if (c == ',') {
+                hasDst = false;
+                tmpNeighborQlen.insert(std::pair<std::uint64_t,size_t>(dst, qlen));
+                qlen == 0;
+                dst == 0;
+              } else if (hasId){
+                qlen = qlen * 10 + c - 48;
+                if (hasDst) {
+                  qlen = qlen * 10 + c - 48;
+                } else {
+                  dst = dst * 10 + c - 48;
+                }
+              } else {
+                srcId = srcId * 10 + c - 48;
+              }
+            }
+            tmpNeighborQlen.insert(std::pair<std::uint64_t,size_t>(dst, qlen));
+            neighborQlen_.insert(std::pair<std::uint64_t,std::map<std::uint64_t,size_t>>(srcId, tmpNeighborQlen));
+            LOGGER_VERBOSE_LOGGING(*pLogService_,
+                                         DEBUG_LEVEL,
+                                         "MACI %03hu TDMA:: recived length %hu @#@#@#@",
+                                         id_,
+                                         data.size());
+            
+            
+            continue;
+
+          }
 
           if(bPromiscuousMode_ ||
              (dst == id_) ||

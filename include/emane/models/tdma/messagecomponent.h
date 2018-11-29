@@ -72,6 +72,7 @@ namespace EMANE
           DATA, /**< Data message component */
           CONTROL, /**< Control messgae component (Scheduler
                       over-the-air) */
+          QUEUELENGTH, /**< Queue Length Information */
          };
 
         using Data = std::vector<uint8_t>;

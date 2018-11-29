@@ -70,6 +70,9 @@ EMANE::Models::TDMA::BaseModelMessage::BaseModelMessage(const void * p, size_t l
         case EMANEMessage::TDMABaseModelMessage::Message::CONTROL:
           type = MessageComponent::Type::CONTROL;
           break;
+        case EMANEMessage::TDMABaseModelMessage::Message::QUEUELENGTH:
+          type = MessageComponent::Type::QUEUELENGTH;
+          break;
         default:
           throw SerializationException("TDMABaseModelMessage unkown type");
         }
@@ -142,6 +145,9 @@ EMANE::Serialization EMANE::Models::TDMA::BaseModelMessage::serialize() const
           break;
         case MessageComponent::Type::CONTROL:
           pMessage->set_type(EMANEMessage::TDMABaseModelMessage::Message::CONTROL);
+          break;
+        case MessageComponent::Type::QUEUELENGTH:
+          pMessage->set_type(EMANEMessage::TDMABaseModelMessage::Message::QUEUELENGTH);
           break;
         default:
           throw SerializationException("TDMABaseModelMessage unkown type");
