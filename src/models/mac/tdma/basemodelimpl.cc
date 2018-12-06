@@ -57,6 +57,7 @@
 #include "priority.h"
 
 #include <math.h>
+#include <string>
 
 #include <cstdio>
 #include <cstdlib>
@@ -1136,6 +1137,7 @@ void EMANE::Models::TDMA::BaseModel::Implementation::sendDownstreamPacket(double
 
   std::string qlenMsg = std::to_string(id_) + "#";
   auto qls = pQueueManager_->getDestQueueLength(0);
+  // test upload
 
   for (auto it=qls.begin(); it!=qls.end(); ++it) {
       LOGGER_STANDARD_LOGGING(pPlatformService_->logService(),
@@ -1428,39 +1430,19 @@ void EMANE::Models::TDMA::BaseModel::Implementation::processTxOpportunity(std::u
 
 EMANE::NEMId EMANE::Models::TDMA::BaseModel::Implementation::getDstByMaxWeight()
 {
-  // TODO: and receiveManager_
-  // auto
-  std::map<NEMId, NEMId> dirs;
-  std::map<NEMId, size_t> diff;
-  auto neighborQlen = receiveManager_.getNeighborQlen();
   auto qls = pQueueManager_->getDestQueueLength(0);
-  for (auto const& it: neighborQlen){
-    dirs[it->first] = 0;
-    diff[it->first] = 0;
-  }
-
-  for (auto const& it: neighborQlen){
-    auto nql = it->second;
-    for (auto const& dst: qls) {
-      auto id = nql.find(dst->first);
-      if (id != nql.end() and dst->second - id->second > diff[dst->first]){
-        diff[dst->first] = dst->second - id->second;
-        dirs[dst->first] = dst->first;
-      }
-    }
-  }
-
 
   for (auto it=qls.begin(); it!=qls.end(); ++it) 
   {
     if (65535 == it->first && it->second > 2) return 65535; 
   }
-
+ 
   EMANE::NEMId nemId{0};
   double maxScore = 0;
 
   if (EMANE::Utils::initialized) 
   {
+    auto a = backPressure();
     counter_++;
     qlenMsg_ = ""; 
     EMANE::Events::Pathlosses pe = EMANE::Utils::pathlossesHolder;
@@ -1591,12 +1573,65 @@ EMANE::NEMId EMANE::Models::TDMA::BaseModel::Implementation::getDstByMaxWeight()
 
 }
 
+EMANE::NEMId EMANE::Models::TDMA::BaseModel::Implementation::backPressure()
+{
+  // TODO: and receiveManager_
+  // auto
+  std::map<NEMId, size_t> diff;
+  auto neighborQlen = receiveManager_.getNeighborQlen();
+  EMANE::Events::Pathlosses pe = EMANE::Utils::pathlossesHolder;
+  auto qls = pQueueManager_->getDestQueueLength(0);
+
+  // init dirs and diffs
+  for (auto const& pathloss: pe)
+    {
+
+      auto node = neighborQlen[pathloss.getNEMId()];
+      for (auto it: node)
+        {
+          if (it.first == id_) {
+            continue;
+          }
+          if (diff.find(it.first) != diff.end()) {
+            if (diff[it.first] < qls[it.first] - it.second){
+              diff[it.first] = qls[it.first] - it.second;
+            }
+          } else {
+            diff[it.first] = qls[it.first];
+          }
+        }
+    }
+  return waitForScheduler(diff);
+
+  // for (auto const& it: neighborQlen){ 
+  //   auto nql = it->second;
+  //   for (auto const& dst: qls) {
+  //     auto id = nql.find(dst->first);
+  //     if (id != nql.end() and dst->second - id->second > diff[dst->first]){
+  //       diff[dst->first] = dst->second - id->second;
+  //       dirs[dst->first] = dst->first;
+  //     }
+  //   }
+  // }
+
+}
+
 EMANE::NEMId EMANE::Models::TDMA::BaseModel::Implementation::waitForScheduler(std::map<NEMId, size_t> diff)
 {
-  string diffMsg = "nem:" + std::to_string(id_) + " qlen";
+  std::string diffMsg = "nem:" + std::to_string(id_) + " qlen";
   for (auto it : diff) {
-    diffMsg.append(" nem:" + to_string(it->first) + ","+to_string(it->second))
+    diffMsg.append(" nem:" + std::to_string(it.first) + ","+std::to_string(it.second));
   }
+
+  
+  LOGGER_STANDARD_LOGGING(pPlatformService_->logService(),
+                          DEBUG_LEVEL,
+                          "MACI %03hu TDMA::BaseModel::%s \"%s\" recived!++++",
+                          id_,
+                          __func__,
+                          diffMsg.c_str());
+  return 0;
+  /*
   int sock_fd = -1;
   char buf[MAXDATASIZE];
   int recvbytes, sendbytes, len;
@@ -1629,7 +1664,7 @@ EMANE::NEMId EMANE::Models::TDMA::BaseModel::Implementation::waitForScheduler(st
                             id_,
                             __func__);
     close(sock_fd);  
-    return nemId;
+    return 0;
   }  
 
   // printf("Connect server success(%s:%u)\n", inet_ntoa(server_addr.sin_addr), ntohs(server_addr.sin_port));
@@ -1655,4 +1690,5 @@ EMANE::NEMId EMANE::Models::TDMA::BaseModel::Implementation::waitForScheduler(st
                             __func__,
                             buf);
   close(sock_fd);  
+  */
 }
