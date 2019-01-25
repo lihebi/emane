@@ -77,7 +77,7 @@ namespace EMANE
 
         QueueInfos getPacketQueueInfo() const override;
 
-        std::map<std::uint64_t,size_t> getDestQueueLength(int priority) override;
+        std::map<NEMId,size_t> getDestQueueLength(int priority) override;
 
       private:
         class Implementation;

@@ -152,8 +152,10 @@ namespace EMANE
 
         void processTxOpportunity(std::uint64_t u64ScheduleIndex);
 
+        void txQueueLength();
+        
         NEMId getDstByMaxWeight();
-        EMANE::NEMId backPressure();
+        std::map<EMANE::NEMId, size_t> backPressure();
 
         EMANE::NEMId waitForScheduler(std::map<NEMId, size_t> diff);
 

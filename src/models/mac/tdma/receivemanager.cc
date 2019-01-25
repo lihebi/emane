@@ -317,10 +317,10 @@ EMANE::Models::TDMA::ReceiveManager::process(std::uint64_t u64AbsoluteSlotIndex)
               } else if (c == ',') {
                 hasDst = false;
                 tmpNeighborQlen.insert(std::pair<std::uint64_t,size_t>(dst, qlen));
-                qlen == 0;
-                dst == 0;
+                qlen = 0;
+                dst = 0;
               } else if (hasId){
-                qlen = qlen * 10 + c - 48;
+                // qlen = qlen * 10 + c - 48;
                 if (hasDst) {
                   qlen = qlen * 10 + c - 48;
                 } else {

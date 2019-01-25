@@ -431,9 +431,9 @@ std::tuple<size_t,size_t> EMANE::Models::TDMA::Queue::getStatus() const
 }
 
 // get all queue length
-std::map<std::uint64_t,size_t> EMANE::Models::TDMA::Queue::getDestQueueLength()
+std::map<EMANE::NEMId,size_t> EMANE::Models::TDMA::Queue::getDestQueueLength()
 {
-  std::map<std::uint64_t,size_t> destQueueLength{};
+  std::map<EMANE::NEMId,size_t> destQueueLength{};
   for (auto it=destQueue_.begin(); it!=destQueue_.end(); ++it) 
   {
     destQueueLength.insert(std::make_pair(it->first,it->second.size()));

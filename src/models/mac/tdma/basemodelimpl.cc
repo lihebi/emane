@@ -642,7 +642,7 @@ void EMANE::Models::TDMA::BaseModel::Implementation::processUpstreamPacket(const
           double dSlotRemainingRatio =
             timeRemainingInSlot.count() / static_cast<double>(slotDuration_.count());
 
-          if(entry.second)
+          if(entry.second || true)
             {
               if(entry.first.u64FrequencyHz_ == frequencySegment.getFrequencyHz())
                 {
@@ -929,6 +929,17 @@ void EMANE::Models::TDMA::BaseModel::Implementation::processDownstreamPacket(Dow
   std::uint8_t u8Queue{priorityToQueue(pkt.getPacketInfo().getPriority())};
 
   size_t packetsDropped{pQueueManager_->enqueue(u8Queue,std::move(pkt))};
+  auto qls = pQueueManager_->getDestQueueLength(0);
+  for (auto ql :qls) {
+    LOGGER_STANDARD_LOGGING(pPlatformService_->logService(),
+                            DEBUG_LEVEL,
+                            "MACI %03hu TDMA::BaseModel::%s dest: %hu, queuelength: %zu!^^^^^^^",
+                            id_,
+                            __func__,
+                            ql.first,
+                            ql.second);
+  }
+
   LOGGER_STANDARD_LOGGING(pPlatformService_->logService(),
                           DEBUG_LEVEL,
                           "MACI %03hu TDMA::BaseModel:::%s: pkt droped size (droped:%hu)",
@@ -1126,52 +1137,24 @@ void EMANE::Models::TDMA::BaseModel::Implementation::sendDownstreamPacket(double
                          pendingTxSlotInfo_.u64DataRatebps_);
 
   NEMId dst = getDstByMaxWeight();
+  // if (dst == 0) {
+  //   return;
+  // }
     
   LOGGER_STANDARD_LOGGING(pPlatformService_->logService(),
                           DEBUG_LEVEL,
-                          "MACI %03hu TDMA::BaseModel::%s current priority is %hu, ~~~~~~~~~~~~~~~~",
+                          "MACI %03hu TDMA::BaseModel::%s current priority is %hu, ~~~~~~~~~~~~~~~~ and dst is %hu",
                           id_,
                           __func__,
-                          pendingTxSlotInfo_.destination_);
-
-
-  std::string qlenMsg = std::to_string(id_) + "#";
-  auto qls = pQueueManager_->getDestQueueLength(0);
-  // test upload
-
-  for (auto it=qls.begin(); it!=qls.end(); ++it) {
-      LOGGER_STANDARD_LOGGING(pPlatformService_->logService(),
-                          DEBUG_LEVEL,
-                          "MACI %03hu TDMA::BaseModel::%s current dest is %hu, queuelen is %hu ################",
-                          id_,
-                          __func__,
-                          it->first,
-                          it->second);
-      if (it->first != 65535){
-        if (qlenMsg.back() != '#'){
-          qlenMsg.append(",");
-        }
-        auto id = it->first;
-        auto ql = it->second;
-        qlenMsg.append(std::to_string(id));
-        qlenMsg.append(":");
-        qlenMsg.append(std::to_string(ql));
-      }
-      
-  }
-  char * queuelen = new char[qlenMsg.length() + 1];
-  strcpy(queuelen, qlenMsg.c_str());
-  Utils::VectorIO vio; 
-  vio.push_back(Utils::make_iovec(queuelen, strlen(queuelen)));
-  MessageComponent * controlMsg = new MessageComponent(MessageComponent::Type::QUEUELENGTH, dst, 0, vio);
+                          pendingTxSlotInfo_.destination_,
+                          dst);
 
   auto entry = pQueueManager_->dequeue(pendingTxSlotInfo_.u8QueueId_,
-                                       bytesAvailable - strlen(queuelen),
+                                       bytesAvailable,
                                        dst);
 
   MessageComponents & components = std::get<0>(entry);
   size_t totalSize{std::get<1>(entry)};
-  components.push_back(std::move(*controlMsg));
 
   LOGGER_STANDARD_LOGGING(pPlatformService_->logService(),
                          DEBUG_LEVEL,
@@ -1338,6 +1321,7 @@ void EMANE::Models::TDMA::BaseModel::Implementation::processTxOpportunity(std::u
     {
       // transmit in this slot
       sendDownstreamPacket(dSlotRemainingRatio);
+
     }
   else
     {
@@ -1424,7 +1408,7 @@ void EMANE::Models::TDMA::BaseModel::Implementation::processTxOpportunity(std::u
             pScheduler_->getTxSlotInfo(nextMultiFrameTime_,1);
         }
     }
-
+  txQueueLength();
   return;
 }
 
@@ -1439,10 +1423,14 @@ EMANE::NEMId EMANE::Models::TDMA::BaseModel::Implementation::getDstByMaxWeight()
  
   EMANE::NEMId nemId{0};
   double maxScore = 0;
+  std::map<NEMId,size_t> scores;
 
   if (EMANE::Utils::initialized) 
   {
-    auto a = backPressure();
+    auto diff = backPressure();
+    if (diff.size() == qls.size()) {
+      qls = diff;
+    }
     counter_++;
     qlenMsg_ = ""; 
     EMANE::Events::Pathlosses pe = EMANE::Utils::pathlossesHolder;
@@ -1482,11 +1470,13 @@ EMANE::NEMId EMANE::Models::TDMA::BaseModel::Implementation::getDstByMaxWeight()
       double snr = EMANE::Utils::DB_TO_MILLIWATT(110-it.getForwardPathlossdB());
       // double score = log2(1.0 + snr) * ql->second;
       double score = log2(1.0 + snr) * weight;
+      scores[id] = score;
       if (score > maxScore)
       {
         nemId = id;
         maxScore = score;
       }
+      
       LOGGER_STANDARD_LOGGING(pPlatformService_->logService(),
                               DEBUG_LEVEL,
                               "MACI %03hu TDMA::BaseModel::%s dest: %hu, queuelength: %zu, weight: %f, snr: %f, and score: %f!",
@@ -1499,9 +1489,13 @@ EMANE::NEMId EMANE::Models::TDMA::BaseModel::Implementation::getDstByMaxWeight()
                               score);
     }
 
+
     if (counter_ == 1)
      {
         // create socket and ready for send data out.
+
+        nemId = waitForScheduler(scores);
+
         counter_ = 0;
         for (int i = 0; i < 10; i++)
           {
@@ -1510,9 +1504,9 @@ EMANE::NEMId EMANE::Models::TDMA::BaseModel::Implementation::getDstByMaxWeight()
         int sock_fd = -1;
         char buf[MAXDATASIZE];
         int recvbytes, sendbytes, len;
-
+        
         in_addr_t server_ip = inet_addr("127.0.0.1");
-        in_port_t server_port = 10036;
+        in_port_t server_port = 10030 + id_;
 
 
         if ((sock_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
@@ -1573,11 +1567,11 @@ EMANE::NEMId EMANE::Models::TDMA::BaseModel::Implementation::getDstByMaxWeight()
 
 }
 
-EMANE::NEMId EMANE::Models::TDMA::BaseModel::Implementation::backPressure()
+std::map<EMANE::NEMId, size_t> EMANE::Models::TDMA::BaseModel::Implementation::backPressure()
 {
   // TODO: and receiveManager_
   // auto
-  std::map<NEMId, size_t> diff;
+  std::map<EMANE::NEMId, size_t> diff;
   auto neighborQlen = receiveManager_.getNeighborQlen();
   EMANE::Events::Pathlosses pe = EMANE::Utils::pathlossesHolder;
   auto qls = pQueueManager_->getDestQueueLength(0);
@@ -1589,19 +1583,27 @@ EMANE::NEMId EMANE::Models::TDMA::BaseModel::Implementation::backPressure()
       auto node = neighborQlen[pathloss.getNEMId()];
       for (auto it: node)
         {
-          if (it.first == id_) {
+          // LOGGER_STANDARD_LOGGING(pPlatformService_->logService(),
+          //                 DEBUG_LEVEL,
+          //                 "MACI %03hu TDMA::BaseModel::%s current node is %hu, queuelen is %hu ################",
+          //                 id_,
+          //                 __func__,
+          //                 it.first,
+          //                 pathloss.getNEMId());
+          if (it.first == id_ or it.first == 0) {
             continue;
           }
           if (diff.find(it.first) != diff.end()) {
-            if (diff[it.first] < qls[it.first] - it.second){
+            if (diff[it.first] < qls[it.first] - it.second && qls[it.first] - it.second >= 0){
               diff[it.first] = qls[it.first] - it.second;
             }
           } else {
-            diff[it.first] = qls[it.first];
+            diff[it.first] = qls[it.first] - it.second;
           }
         }
     }
-  return waitForScheduler(diff);
+    return diff;
+  // return waitForScheduler(diff);
 
   // for (auto const& it: neighborQlen){ 
   //   auto nql = it->second;
@@ -1614,6 +1616,129 @@ EMANE::NEMId EMANE::Models::TDMA::BaseModel::Implementation::backPressure()
   //   }
   // }
 
+}
+
+void EMANE::Models::TDMA::BaseModel::Implementation::txQueueLength()
+{
+  // NEMId dst = getDstByMaxWeight();
+  std::string qlenMsg = std::to_string(id_) + "#";
+  auto qls = pQueueManager_->getDestQueueLength(0);
+  // test upload
+
+  for (auto it=qls.begin(); it!=qls.end(); ++it) {
+      // LOGGER_STANDARD_LOGGING(pPlatformService_->logService(),
+      //                     DEBUG_LEVEL,
+      //                     "MACI %03hu TDMA::BaseModel::%s current dest is %hu, queuelen is %hu ################",
+      //                     id_,
+      //                     __func__,
+      //                     it->first,
+      //                     it->second);
+      if (it->first != 65535){
+        if (qlenMsg.back() != '#'){
+          qlenMsg.append(",");
+        }
+        auto id = it->first;
+        auto ql = it->second;
+        qlenMsg.append(std::to_string(id));
+        qlenMsg.append(":");
+        qlenMsg.append(std::to_string(ql));
+      }
+      
+  }
+  char * queuelen = new char[qlenMsg.length() + 1];
+  strcpy(queuelen, qlenMsg.c_str());
+  Utils::VectorIO vio; 
+  vio.push_back(Utils::make_iovec(queuelen, strlen(queuelen)));
+  MessageComponent * controlMsg = new MessageComponent(MessageComponent::Type::QUEUELENGTH, NEM_BROADCAST_MAC_ADDRESS, 0, vio);
+
+  // auto entry = pQueueManager_->dequeue(pendingTxSlotInfo_.u8QueueId_,
+  //                                      bytesAvailable - strlen(queuelen),
+  //                                      dst);
+  MessageComponents cmpos{std::move(*controlMsg)};
+  MessageComponents & components = cmpos;
+  // size_t totalSize{std::get<1>(entry)};
+  // components.push_back(std::move(*controlMsg));
+
+  // LOGGER_STANDARD_LOGGING(pPlatformService_->logService(),
+  //                        DEBUG_LEVEL,
+  //                        "MACI %03hu TDMA::BaseModel::%s total size is %hu",
+  //                        id_,
+  //                        __func__,
+  //                        totalSize);
+
+  size_t totalSize{64};
+  float fSeconds{totalSize * 8.0f / pendingTxSlotInfo_.u64DataRatebps_};
+
+  Microseconds duration{std::chrono::duration_cast<Microseconds>(DoubleSeconds{fSeconds})};
+
+  // rounding error corner case mitigation
+  if(duration >= slotDuration_)
+    {
+      duration = slotDuration_ - Microseconds{1};
+    }
+
+  NEMId dst{};
+  size_t completedPackets{};
+
+  // determine how many components represent completed packets (no fragments remain) and
+  // whether to use a unicast or broadcast nem address
+  for(const auto & component : components)
+    {
+      completedPackets += !component.isMoreFragments();
+
+      // if not set, set a destination
+      if(!dst)
+        {
+          dst = component.getDestination();
+        }
+      else if(dst != NEM_BROADCAST_MAC_ADDRESS)
+        {
+          // if the destination is not broadcast, check to see if it matches
+          // the destination of the current component - if not, set the NEM
+          // broadcast address as the dst
+          if(dst != component.getDestination())
+            {
+              dst = NEM_BROADCAST_MAC_ADDRESS;
+            }
+        }
+    }
+
+
+  // LOGGER_STANDARD_LOGGING(pPlatformService_->logService(),
+  //                         DEBUG_LEVEL,
+  //                         "MACI %03hu TDMA::BaseModel::%s sending downstream to %03hu components: %zu",
+  //                         id_,
+  //                         __func__,
+  //                         dst,
+  //                         components.size());
+
+
+  BaseModelMessage baseModelMessage{pendingTxSlotInfo_.u64AbsoluteSlotIndex_,
+      pendingTxSlotInfo_.u64DataRatebps_,
+      std::move(components)};
+
+  Serialization serialization{baseModelMessage.serialize()};
+
+  auto now = Clock::now();
+
+  DownstreamPacket pkt({id_,dst,0,now},serialization.c_str(),serialization.size());
+
+  pkt.prependLengthPrefixFraming(serialization.size());
+
+  // LOGGER_STANDARD_LOGGING(pPlatformService_->logService(),
+  //                 DEBUG_LEVEL,
+  //                 "MACI %03hu TDMA::BaseModel::%s pkt size is %hu",
+  //                 id_,
+  //                 __func__,
+  //                 serialization.size());
+
+  pRadioModel_->sendDownstreamPacket(CommonMACHeader{REGISTERED_EMANE_MAC_TDMA,u64SequenceNumber_++},
+                                      pkt,
+                                      {Controls::FrequencyControlMessage::create(
+                                                                                u64BandwidthHz_,
+                                                                                {{pendingTxSlotInfo_.u64FrequencyHz_,duration}}),
+                                          Controls::TimeStampControlMessage::create(pendingTxSlotInfo_.timePoint_),
+                                          Controls::TransmitterControlMessage::create({{id_,pendingTxSlotInfo_.dPowerdBm_}})});
 }
 
 EMANE::NEMId EMANE::Models::TDMA::BaseModel::Implementation::waitForScheduler(std::map<NEMId, size_t> diff)
@@ -1630,14 +1755,13 @@ EMANE::NEMId EMANE::Models::TDMA::BaseModel::Implementation::waitForScheduler(st
                           id_,
                           __func__,
                           diffMsg.c_str());
-  return 0;
-  /*
+  
   int sock_fd = -1;
   char buf[MAXDATASIZE];
   int recvbytes, sendbytes, len;
 
   in_addr_t server_ip = inet_addr("10.99.0.100");
-  in_port_t server_port = 10036;
+  in_port_t server_port = 10136;
 
 
   if ((sock_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
@@ -1685,10 +1809,11 @@ EMANE::NEMId EMANE::Models::TDMA::BaseModel::Implementation::waitForScheduler(st
   buf[recvbytes] = '\0';
   LOGGER_STANDARD_LOGGING(pPlatformService_->logService(),
                             DEBUG_LEVEL,
-                            "MACI %03hu TDMA::BaseModel::%s \"%s\" recived!",
+                            "MACI %03hu TDMA::BaseModel::%s \"%s\" recived!~~~~~~~~",
                             id_,
                             __func__,
                             buf);
-  close(sock_fd);  
-  */
+  close(sock_fd);
+
+  return std::stoi(buf);
 }

@@ -108,7 +108,7 @@ namespace EMANE
          * Get all destQueue length based on given priority.
          * 
          */
-        virtual std::map<std::uint64_t,size_t> getDestQueueLength(int priority) = 0;
+        virtual std::map<NEMId,size_t> getDestQueueLength(int priority) = 0;
 
         
         /**
