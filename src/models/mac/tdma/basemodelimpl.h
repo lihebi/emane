@@ -154,8 +154,8 @@ namespace EMANE
 
         void txQueueLength();
         
-        NEMId getDstByMaxWeight();
-        std::map<EMANE::NEMId, size_t> backPressure();
+        std::pair<EMANE::NEMId, EMANE::NEMId> getDstByMaxWeight();
+        std::map<std::pair<EMANE::NEMId,EMANE::NEMId>, size_t> backPressure();
 
         EMANE::NEMId waitForScheduler(std::map<NEMId, size_t> diff);
 

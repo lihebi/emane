@@ -69,15 +69,21 @@ namespace EMANE
 
         size_t enqueue(std::uint8_t u8QueueIndex, DownstreamPacket && pkt) override;
 
+        virtual std::tuple<EMANE::Models::TDMA::MessageComponents,
+                           size_t>
+        dequeue(std::uint8_t u8QueueIndex,
+                size_t length,
+                NEMId destination) override;
+
         std::tuple<EMANE::Models::TDMA::MessageComponents,
                    size_t>
           dequeue(std::uint8_t u8QueueIndex,
                   size_t length,
-                  NEMId destination) override;
+                  std::pair<NEMId, NEMId> destination) override;
 
         QueueInfos getPacketQueueInfo() const override;
 
-        std::map<NEMId,size_t> getDestQueueLength(int priority) override;
+        std::map<std::pair<NEMId, NEMId>,size_t> getDestQueueLength(int priority) override;
 
       private:
         class Implementation;

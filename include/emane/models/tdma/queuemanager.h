@@ -104,11 +104,17 @@ namespace EMANE
                 size_t length,
                 NEMId destination) = 0;
 
+        virtual std::tuple<EMANE::Models::TDMA::MessageComponents,
+                           size_t>
+        dequeue(std::uint8_t u8QueueIndex,
+                size_t length,
+                std::pair<NEMId, NEMId> destination) = 0;
+
         /**
          * Get all destQueue length based on given priority.
          * 
          */
-        virtual std::map<NEMId,size_t> getDestQueueLength(int priority) = 0;
+        virtual std::map<std::pair<NEMId, NEMId>,size_t> getDestQueueLength(int priority) = 0;
 
         
         /**

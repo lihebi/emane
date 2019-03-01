@@ -294,11 +294,13 @@ EMANE::Models::TDMA::ReceiveManager::process(std::uint64_t u64AbsoluteSlotIndex)
 
 
           if(message.getType() == MessageComponent::Type::QUEUELENGTH) {
-            std::map<std::uint64_t,size_t> tmpNeighborQlen;
-            std::uint64_t dst = 0;
+            std::map<std::pair<NEMId,NEMId>,size_t> tmpNeighborQlen;
+            NEMId dst = 0;
+            NEMId src = 0;
             std::size_t qlen = 0;
             NEMId srcId = 0;
             bool hasDst = false;
+            bool hasSrc = false;
             bool hasId = false;
             const auto & data = message.getData();
             for (auto c : data){
@@ -308,20 +310,25 @@ EMANE::Models::TDMA::ReceiveManager::process(std::uint64_t u64AbsoluteSlotIndex)
                                     id_,
                                     c,
                                     c);
-                                    
+              // 1#1-2:3,2-3:4
               if (c == ':') {
                 hasDst = true;
               } else if (c == '#'){
-                tmpNeighborQlen.insert(std::pair<std::uint64_t,size_t>(srcId, 0));
+                // tmpNeighborQlen.insert(std::pair<std::pair<NEMId,NEMId>,size_t>(srcId, 0));
                 hasId = true;
+              } else if (c == '-') {
+                hasSrc = true;
               } else if (c == ',') {
                 hasDst = false;
-                tmpNeighborQlen.insert(std::pair<std::uint64_t,size_t>(dst, qlen));
+                tmpNeighborQlen.insert(std::pair<std::pair<NEMId,NEMId>,size_t>(std::make_pair(src, dst), qlen));
                 qlen = 0;
                 dst = 0;
+                src = 0;
               } else if (hasId){
                 // qlen = qlen * 10 + c - 48;
-                if (hasDst) {
+                if (hasSrc && !hasDst) {
+                  src = src * 10 + c - 48;
+                } else if (hasDst) {
                   qlen = qlen * 10 + c - 48;
                 } else {
                   dst = dst * 10 + c - 48;
@@ -330,8 +337,8 @@ EMANE::Models::TDMA::ReceiveManager::process(std::uint64_t u64AbsoluteSlotIndex)
                 srcId = srcId * 10 + c - 48;
               }
             }
-            tmpNeighborQlen.insert(std::pair<std::uint64_t,size_t>(dst, qlen));
-            neighborQlen_.insert(std::pair<std::uint64_t,std::map<std::uint64_t,size_t>>(srcId, tmpNeighborQlen));
+            tmpNeighborQlen.insert(std::pair<std::pair<NEMId,NEMId>,size_t>(std::make_pair(src, dst), qlen));
+            neighborQlen_.insert(std::make_pair(srcId, tmpNeighborQlen));
             LOGGER_VERBOSE_LOGGING(*pLogService_,
                                          DEBUG_LEVEL,
                                          "MACI %03hu TDMA:: recived length %hu @#@#@#@",

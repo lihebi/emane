@@ -60,6 +60,7 @@ std::pair<std::unique_ptr<EMANE::DownstreamPacket>,bool>
   DownstreamPacket * pPkt{new DownstreamPacket{std::move(pkt)}};
 
   NEMId dest{pPkt->getPacketInfo().getDestination()};
+  NEMId source{pPkt->getPacketInfo().getSource()};
 
   if(queue_.size() == u16QueueDepth_)
     {
@@ -91,8 +92,9 @@ std::pair<std::unique_ptr<EMANE::DownstreamPacket>,bool>
       bDroppedPacket = true;
 
       auto dst = pDroppedPacket->getPacketInfo().getDestination();
+      auto src = pDroppedPacket->getPacketInfo().getSource();
 
-      destQueue_[dst].erase(entry->first);
+      destQueue_[std::make_pair(src, dst)].erase(entry->first);
 
       queue_.erase(entry->first);
 
@@ -105,11 +107,11 @@ std::pair<std::unique_ptr<EMANE::DownstreamPacket>,bool>
 
   queue_.insert(std::make_pair(u64Counter_,std::make_pair(pPkt,pMetaInfo)));
 
-  auto iter = destQueue_.find(dest);
+  auto iter = destQueue_.find(std::make_pair(source, dest));
 
   if(iter == destQueue_.end())
     {
-      iter = destQueue_.insert({dest,PacketQueue{}}).first;
+      iter = destQueue_.insert({std::make_pair(source, dest),PacketQueue{}}).first;
     }
 
   currentBytes_ += pPkt->length();
@@ -124,15 +126,14 @@ std::pair<std::unique_ptr<EMANE::DownstreamPacket>,bool>
 std::tuple<EMANE::Models::TDMA::MessageComponents,
            size_t,
            std::list<std::unique_ptr<EMANE::DownstreamPacket>>>
-  EMANE::Models::TDMA::Queue::dequeue(size_t requestedBytes, NEMId destination,bool bDrop)
+  EMANE::Models::TDMA::Queue::dequeue(size_t requestedBytes, std::pair<NEMId, NEMId> destination,bool bDrop)
 {
   MessageComponents components{};
   size_t totalBytes{};
   std::list<std::unique_ptr<DownstreamPacket>> dropped;
-
   while(totalBytes <= requestedBytes)
     {
-      if(destination)
+      if(destination.second)
         {
           auto iter = destQueue_.find(destination);
 
@@ -243,6 +244,7 @@ std::tuple<EMANE::Models::TDMA::MessageComponents,
           auto & pMetaInfo = std::get<1>(entry->second);
 
           NEMId dst{pPacket->getPacketInfo().getDestination()};
+          NEMId src{pPacket->getPacketInfo().getSource()};
 
           if(pPacket->length() - pMetaInfo->offset_ <= requestedBytes - totalBytes)
             {
@@ -277,7 +279,7 @@ std::tuple<EMANE::Models::TDMA::MessageComponents,
               delete pMetaInfo;
 
               // remove from destination queue using queue sequence
-              destQueue_[dst].erase(entry->first);
+              destQueue_[std::make_pair(src,dst)].erase(entry->first);
 
               // remove for packet queue using iterator
               queue_.erase(entry);
@@ -317,7 +319,7 @@ std::tuple<EMANE::Models::TDMA::MessageComponents,
                       delete pMetaInfo;
 
                       // remove from destination queue using queue sequence
-                      destQueue_[dst].erase(entry->first);
+                      destQueue_[std::make_pair(src,dst)].erase(entry->first);
 
                       // remove for packet queue using iterator
                       queue_.erase(entry);
@@ -431,9 +433,9 @@ std::tuple<size_t,size_t> EMANE::Models::TDMA::Queue::getStatus() const
 }
 
 // get all queue length
-std::map<EMANE::NEMId,size_t> EMANE::Models::TDMA::Queue::getDestQueueLength()
+std::map<std::pair<EMANE::NEMId, EMANE::NEMId>,size_t> EMANE::Models::TDMA::Queue::getDestQueueLength()
 {
-  std::map<EMANE::NEMId,size_t> destQueueLength{};
+  std::map<std::pair<EMANE::NEMId, EMANE::NEMId>,size_t> destQueueLength{};
   for (auto it=destQueue_.begin(); it!=destQueue_.end(); ++it) 
   {
     destQueueLength.insert(std::make_pair(it->first,it->second.size()));

@@ -298,6 +298,15 @@ EMANE::Models::TDMA::BasicQueueManager::dequeue(std::uint8_t u8QueueIndex,
                                                 size_t requestedBytes,
                                                 NEMId destination)
 {
+  return {};
+}
+
+
+std::tuple<EMANE::Models::TDMA::MessageComponents,size_t>
+EMANE::Models::TDMA::BasicQueueManager::dequeue(std::uint8_t u8QueueIndex,
+                                                size_t requestedBytes,
+                                                std::pair<NEMId, NEMId> destination)
+{
   MessageComponents components{};
   size_t totalLength{};
 
@@ -405,7 +414,7 @@ EMANE::Models::TDMA::BasicQueueManager::getPacketQueueInfo() const
   return queueInfos;
 }
 
-std::map<EMANE::NEMId,size_t> EMANE::Models::TDMA::BasicQueueManager::getDestQueueLength(int priority)
+std::map<std::pair<EMANE::NEMId, EMANE::NEMId>,size_t> EMANE::Models::TDMA::BasicQueueManager::getDestQueueLength(int priority)
 {
   return pImpl_->queues_[priority].getDestQueueLength();
 }

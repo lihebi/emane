@@ -437,7 +437,8 @@ EMANE::Models::TDMA::EventScheduler::getRxSlotInfo(const TimePoint & timePoint) 
       slotter_.getSlotTime(u64AbsoluteSlotIndex),
       info.getFrequency()};
 
-  return {rxSlotInfo,info.getType() == Events::SlotInfo::Type::RX};
+  // return {rxSlotInfo,info.getType() == Events::SlotInfo::Type::RX};
+  return {rxSlotInfo,true};
 }
 
 std::pair<EMANE::Models::TDMA::TxSlotInfos,EMANE::TimePoint>

@@ -68,6 +68,8 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <limits>
+
 #define MAXDATASIZE 1000
 
 namespace
@@ -930,15 +932,15 @@ void EMANE::Models::TDMA::BaseModel::Implementation::processDownstreamPacket(Dow
 
   size_t packetsDropped{pQueueManager_->enqueue(u8Queue,std::move(pkt))};
   auto qls = pQueueManager_->getDestQueueLength(0);
-  for (auto ql :qls) {
-    LOGGER_STANDARD_LOGGING(pPlatformService_->logService(),
-                            DEBUG_LEVEL,
-                            "MACI %03hu TDMA::BaseModel::%s dest: %hu, queuelength: %zu!^^^^^^^",
-                            id_,
-                            __func__,
-                            ql.first,
-                            ql.second);
-  }
+  // for (auto ql :qls) {
+  //   LOGGER_STANDARD_LOGGING(pPlatformService_->logService(),
+  //                           DEBUG_LEVEL,
+  //                           "MACI %03hu TDMA::BaseModel::%s dest: %hu, queuelength: %zu!^^^^^^^",
+  //                           id_,
+  //                           __func__,
+  //                           ql.first,
+  //                           ql.second);
+  // }
 
   LOGGER_STANDARD_LOGGING(pPlatformService_->logService(),
                           DEBUG_LEVEL,
@@ -1136,7 +1138,7 @@ void EMANE::Models::TDMA::BaseModel::Implementation::sendDownstreamPacket(double
                          slotOverhead_.count(),
                          pendingTxSlotInfo_.u64DataRatebps_);
 
-  NEMId dst = getDstByMaxWeight();
+  auto dst = getDstByMaxWeight();
   // if (dst == 0) {
   //   return;
   // }
@@ -1408,29 +1410,99 @@ void EMANE::Models::TDMA::BaseModel::Implementation::processTxOpportunity(std::u
             pScheduler_->getTxSlotInfo(nextMultiFrameTime_,1);
         }
     }
-  txQueueLength();
+  // txQueueLength();
   return;
 }
 
-EMANE::NEMId EMANE::Models::TDMA::BaseModel::Implementation::getDstByMaxWeight()
+std::pair<EMANE::NEMId, EMANE::NEMId> EMANE::Models::TDMA::BaseModel::Implementation::getDstByMaxWeight()
 {
   auto qls = pQueueManager_->getDestQueueLength(0);
 
   for (auto it=qls.begin(); it!=qls.end(); ++it) 
   {
-    if (65535 == it->first && it->second > 2) return 65535; 
+    if (65535 == it->first.second && it->second > 2) return std::make_pair(id_, 65535); 
   }
  
   EMANE::NEMId nemId{0};
+  EMANE::NEMId source{0};
   double maxScore = 0;
   std::map<NEMId,size_t> scores;
 
   if (EMANE::Utils::initialized) 
   {
-    auto diff = backPressure();
-    if (diff.size() == qls.size()) {
-      qls = diff;
+    qlenMsg_ = "";
+    counter_++;
+    EMANE::Events::Pathlosses pe = EMANE::Utils::pathlossesHolder;
+
+    // auto diff = backPressure();
+    // if (diff.size() == qls.size()) {
+    //   qls = diff;
+    // }
+    std::map<NEMId, float> peMap{};
+    // make a min pathloss
+    float minpl = std::numeric_limits<float>::max();
+    NEMId minRoute = 1;
+    for (auto const& it: pe) {
+      peMap.insert(std::make_pair(it.getNEMId(), it.getForwardPathlossdB()));
+      if (minpl > it.getForwardPathlossdB()) {
+        minpl = it.getForwardPathlossdB();
+        minRoute = it.getNEMId();
+      }
+      
     }
+
+    for (auto const& it: qls) {
+      if (65535 == it.first.second) continue;
+      auto id = it.first.second;
+      auto ql = it.second;
+      if (qlenMsg_ != ""){
+        qlenMsg_.append(",");
+      }
+      qlenMsg_.append(std::to_string(id));
+      qlenMsg_.append(std::to_string(id));
+
+
+      double weight = lastWeight_[id] + ql - lastQueueLength_[id] + BETA_ * (lastWeight_[id] - lastLastWeight_[id]+ ql + lastLastQueueLength_[id] - 2 * lastQueueLength_[id]);
+
+      if (weight < 0)
+        {
+          weight = 0;
+        }
+      
+      qlenMsg_.append(":");
+      qlenMsg_.append(std::to_string(weightT_[id] / counter_));
+      
+      weightT_[id] += lastWeight_[id];
+
+      lastLastWeight_[id] = lastWeight_[id];
+      lastWeight_[id] = weight;
+      lastLastQueueLength_[id] = lastQueueLength_[id];
+      lastQueueLength_[id] = ql;
+
+      auto pathlossdB = minpl;
+
+      if (peMap.find(id) != peMap.end()) {
+        pathlossdB = peMap[id];
+      }
+
+
+
+      double snr = EMANE::Utils::DB_TO_MILLIWATT(110-pathlossdB);
+      // double score = log2(1.0 + snr) * ql->second;
+      double score = log2(1.0 + snr) * weight;
+      scores[id] = score;
+      if (score > maxScore)
+      {
+        nemId = id;
+        maxScore = score;
+        source = it.first.first;
+      }
+
+    }
+    //----------------------------------------------------
+    /*
+
+
     counter_++;
     qlenMsg_ = ""; 
     EMANE::Events::Pathlosses pe = EMANE::Utils::pathlossesHolder;
@@ -1487,7 +1559,7 @@ EMANE::NEMId EMANE::Models::TDMA::BaseModel::Implementation::getDstByMaxWeight()
                               weight,
                               snr,
                               score);
-    }
+    } */
 
 
     if (counter_ == 1)
@@ -1533,7 +1605,7 @@ EMANE::NEMId EMANE::Models::TDMA::BaseModel::Implementation::getDstByMaxWeight()
                                   id_,
                                   __func__);
           close(sock_fd);  
-          return nemId;
+          return std::make_pair(source, nemId);
         }  
 
         // printf("Connect server success(%s:%u)\n", inet_ntoa(server_addr.sin_addr), ntohs(server_addr.sin_port));
@@ -1563,18 +1635,25 @@ EMANE::NEMId EMANE::Models::TDMA::BaseModel::Implementation::getDstByMaxWeight()
      
   }
 
-  return nemId;
+  return std::make_pair(source, nemId);
 
 }
 
-std::map<EMANE::NEMId, size_t> EMANE::Models::TDMA::BaseModel::Implementation::backPressure()
+std::map<std::pair<EMANE::NEMId,EMANE::NEMId>, size_t> EMANE::Models::TDMA::BaseModel::Implementation::backPressure()
 {
   // TODO: and receiveManager_
   // auto
-  std::map<EMANE::NEMId, size_t> diff;
+  std::map<std::pair<EMANE::NEMId,EMANE::NEMId>, size_t> diff;
   auto neighborQlen = receiveManager_.getNeighborQlen();
   EMANE::Events::Pathlosses pe = EMANE::Utils::pathlossesHolder;
   auto qls = pQueueManager_->getDestQueueLength(0);
+
+
+
+
+
+
+  //-------------------------------------------------------------------
 
   // init dirs and diffs
   for (auto const& pathloss: pe)
@@ -1590,7 +1669,7 @@ std::map<EMANE::NEMId, size_t> EMANE::Models::TDMA::BaseModel::Implementation::b
           //                 __func__,
           //                 it.first,
           //                 pathloss.getNEMId());
-          if (it.first == id_ or it.first == 0) {
+          if (it.first.second == id_ or it.first.second == 0) {
             continue;
           }
           if (diff.find(it.first) != diff.end()) {
@@ -1618,6 +1697,8 @@ std::map<EMANE::NEMId, size_t> EMANE::Models::TDMA::BaseModel::Implementation::b
 
 }
 
+
+
 void EMANE::Models::TDMA::BaseModel::Implementation::txQueueLength()
 {
   // NEMId dst = getDstByMaxWeight();
@@ -1633,13 +1714,14 @@ void EMANE::Models::TDMA::BaseModel::Implementation::txQueueLength()
       //                     __func__,
       //                     it->first,
       //                     it->second);
-      if (it->first != 65535){
+      if (it->first.second != 65535){
         if (qlenMsg.back() != '#'){
           qlenMsg.append(",");
         }
-        auto id = it->first;
+        auto src = it->first.first;
+        auto dst = it->first.second;
         auto ql = it->second;
-        qlenMsg.append(std::to_string(id));
+        qlenMsg.append(std::to_string(src) + "-" + std::to_string(dst));
         qlenMsg.append(":");
         qlenMsg.append(std::to_string(ql));
       }
@@ -1740,6 +1822,7 @@ void EMANE::Models::TDMA::BaseModel::Implementation::txQueueLength()
                                           Controls::TimeStampControlMessage::create(pendingTxSlotInfo_.timePoint_),
                                           Controls::TransmitterControlMessage::create({{id_,pendingTxSlotInfo_.dPowerdBm_}})});
 }
+
 
 EMANE::NEMId EMANE::Models::TDMA::BaseModel::Implementation::waitForScheduler(std::map<NEMId, size_t> diff)
 {

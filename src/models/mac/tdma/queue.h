@@ -68,12 +68,12 @@ namespace EMANE
         std::tuple<MessageComponents,
                    size_t,
                    std::list<std::unique_ptr<DownstreamPacket>>>
-          dequeue(size_t requestedBytes,NEMId destination,bool bDrop);
+          dequeue(size_t requestedBytes,std::pair<NEMId, NEMId> destination,bool bDrop);
 
         // packets, bytes
         std::tuple<size_t,size_t> getStatus() const;
 
-        std::map<NEMId,size_t> getDestQueueLength();
+        std::map<std::pair<NEMId, NEMId>,size_t> getDestQueueLength();
 
       private:
         class MetaInfo
@@ -85,7 +85,7 @@ namespace EMANE
         using PacketQueue = std::map<std::uint64_t,
                                      std::pair<DownstreamPacket *,MetaInfo *>>;
         PacketQueue queue_;
-        std::map<NEMId,PacketQueue> destQueue_;
+        std::map<std::pair<NEMId,NEMId>,PacketQueue> destQueue_;
         std::uint16_t u16QueueDepth_;
         bool bFragment_;
         std::uint64_t u64Counter_;
