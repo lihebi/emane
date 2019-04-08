@@ -65,7 +65,9 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <unistd.h>
-#include <arpa/inet.h>
+#include <arpa/inet.h> 
+#include <fcntl.h> 
+
 #define MAXDATASIZE 1000
 
 namespace
@@ -1482,56 +1484,11 @@ EMANE::NEMId EMANE::Models::TDMA::BaseModel::Implementation::getDstByMaxWeight()
         in_port_t server_port = 10036;
 
 
-        if ((sock_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-          LOGGER_STANDARD_LOGGING(pPlatformService_->logService(),
-                                  DEBUG_LEVEL,
-                                  "MACI %03hu TDMA::BaseModel::%s Socket creation error!",
-                                  id_,
-                                  __func__);
-        }
+        std::string fifo = "/tmp/emane-mgen_fifo_node" + std::to_string(id_);
+        int fd = open(fifo.c_str(), O_WRONLY);
+        write(fd, msg.c_str(), msg.length() + 1);
+        close(fd);
 
-        long flag = 1;
-        setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR, (char *)&flag, sizeof(flag));
-
-        struct sockaddr_in server_addr;
-        server_addr.sin_addr.s_addr = server_ip;
-        server_addr.sin_family = AF_INET;
-        server_addr.sin_port = htons(server_port);
-        // printf("Try to connect server(%s:%u)\n", inet_ntoa(server_addr.sin_addr), ntohs(server_addr.sin_port));
-
-        if(connect(sock_fd, (struct sockaddr *)&server_addr, sizeof(struct sockaddr)) == -1) {
-          LOGGER_STANDARD_LOGGING(pPlatformService_->logService(),
-                                  DEBUG_LEVEL,
-                                  "MACI %03hu TDMA::BaseModel::%s Connection Failed!",
-                                  id_,
-                                  __func__);
-          close(sock_fd);  
-          return nemId;
-        }  
-
-        // printf("Connect server success(%s:%u)\n", inet_ntoa(server_addr.sin_addr), ntohs(server_addr.sin_port));
-        if(send(sock_fd, msg.c_str(), msg.size(), 0) == -1) {
-            LOGGER_STANDARD_LOGGING(pPlatformService_->logService(),
-                        DEBUG_LEVEL,
-                        "MACI %03hu TDMA::BaseModel::%s Send Failed!",
-                        id_,
-                        __func__);
-        }
-        if((recvbytes=recv(sock_fd, buf, MAXDATASIZE, 0)) == -1) {  
-          LOGGER_STANDARD_LOGGING(pPlatformService_->logService(),
-                                  DEBUG_LEVEL,
-                                  "MACI %03hu TDMA::BaseModel::%s Connection recv Failed!",
-                                  id_,
-                                  __func__);
-        }
-        buf[recvbytes] = '\0';
-        LOGGER_STANDARD_LOGGING(pPlatformService_->logService(),
-                                  DEBUG_LEVEL,
-                                  "MACI %03hu TDMA::BaseModel::%s \"%s\" recived!",
-                                  id_,
-                                  __func__,
-                                  buf);
-        close(sock_fd);  
      }
      
   }
