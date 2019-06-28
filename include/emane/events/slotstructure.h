@@ -47,7 +47,8 @@ namespace EMANE
                     std::uint32_t u32FramePerMultiFrame,
                     std::uint32_t u32SlotsPerFrame,
                     const Microseconds & slotDuration,
-                    const Microseconds & slotOverhead);
+                    const Microseconds & slotOverhead,
+                    float beta);
 
       SlotStructure();
 
@@ -61,12 +62,15 @@ namespace EMANE
 
       const Microseconds & getSlotOverhead() const;
 
+      float getBeta() const;
+
     private:
       std::uint64_t u64BandwidthHz_;
       std::uint32_t u32FramePerMultiFrame_;
       std::uint32_t u32SlotsPerFrame_;
       Microseconds slotDuration_;
       Microseconds slotOverhead_;
+      float beta_;
 
     };
   }

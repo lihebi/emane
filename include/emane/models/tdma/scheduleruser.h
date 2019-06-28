@@ -68,7 +68,8 @@ namespace EMANE
         virtual void notifyScheduleChange(const Frequencies & frequencies,
                                           std::uint64_t u64BandwidthHz,
                                           const Microseconds & slotDuration,
-                                          const Microseconds & slotOverhead) = 0;
+                                          const Microseconds & slotOverhead,
+                                          float beta) = 0;
 
         /**
          * Processes a Scheduler packet for transmission over-the-air

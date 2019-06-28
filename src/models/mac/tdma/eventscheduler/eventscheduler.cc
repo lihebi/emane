@@ -303,7 +303,8 @@ void EMANE::Models::TDMA::EventScheduler::processEvent(const EventId & eventId,
               pSchedulerUser_->notifyScheduleChange(frequencies_,
                                                     structure_.getBandwidth(),
                                                     structure_.getSlotDuration(),
-                                                    structure_.getSlotOverhead());
+                                                    structure_.getSlotOverhead(),
+                                                    structure_.getBeta());
             }
         }
       catch(SerializationException & exp)
@@ -342,7 +343,7 @@ void EMANE::Models::TDMA::EventScheduler::flushSchedule()
   slotter_.reset(Microseconds::zero(),0,0);
 
   // notify the schedule user of a change
-  pSchedulerUser_->notifyScheduleChange({},0,Microseconds::zero(),Microseconds::zero());
+  pSchedulerUser_->notifyScheduleChange({},0,Microseconds::zero(),Microseconds::zero(),0.0);
 }
 
 EMANE::Models::TDMA::SlotInfo

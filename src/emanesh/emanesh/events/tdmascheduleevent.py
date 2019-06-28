@@ -89,6 +89,7 @@ class TDMAScheduleEvent(Event):
         slotOverheadMicroseconds = None
         slotDurationMicroseconds = None
         bandwidthHz = None
+        beta = None
 
         if not kwargs:
 
@@ -97,7 +98,8 @@ class TDMAScheduleEvent(Event):
                         'frames': self._event.structure.framesPerMultiFrame,
                         'slotduration':self._event.structure.slotDurationMicroseconds,
                         'slotoverhead':self._event.structure.slotOverheadMicroseconds,
-                        'bandwidth': self._event.structure.bandwidthHz}
+                        'bandwidth': self._event.structure.bandwidthHz,
+                        'beta': self._event.structure.beta}
             else:
                 return None
 
@@ -141,6 +143,14 @@ class TDMAScheduleEvent(Event):
                     bandwidthHz = value
                 else:
                     raise ValueError("'bandwidth' must be a positive integer greater than 0 (Hz)")
+            
+            elif name == 'beta':
+                if (isinstance(value,int) or \
+                    isinstance(value,float)) and \
+                    value >= 0:
+                    beta = value
+                else:
+                    raise ValueError("'beta' must be a positive decimal between 0 to 1")
 
             else:
                 raise KeyError("unknown parameter: %s" % name)
@@ -150,7 +160,8 @@ class TDMAScheduleEvent(Event):
            framesPerMultiFrame == None or \
            slotOverheadMicroseconds == None or \
            slotDurationMicroseconds == None or \
-           bandwidthHz == None:
+           bandwidthHz == None or \
+           beta == None:
             raise KeyError("Missing one ore more keys: 'slots', 'frames', 'slotduration', 'slotoverhead', 'bandwidth'")
 
         self._event.structure.slotsPerFrame = slotsPerFrame
@@ -158,6 +169,7 @@ class TDMAScheduleEvent(Event):
         self._event.structure.slotDurationMicroseconds = slotDurationMicroseconds
         self._event.structure.slotOverheadMicroseconds = slotOverheadMicroseconds
         self._event.structure.bandwidthHz = bandwidthHz
+        self._event.structure.beta = beta
 
 
     def append(self,frameIndex,slotIndex,**kwargs):

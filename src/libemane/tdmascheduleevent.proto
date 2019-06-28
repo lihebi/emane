@@ -84,6 +84,7 @@ message TDMAScheduleEvent
     required uint64 slotDurationMicroseconds = 3;
     required uint64 slotOverheadMicroseconds = 4;
     required uint64 bandwidthHz = 5;
+    required float beta = 6;
   }
 
   repeated Frame frames = 1;

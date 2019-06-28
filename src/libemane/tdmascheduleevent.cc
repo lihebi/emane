@@ -63,7 +63,8 @@ public:
                                    u32FramesPerMultiFrame,
                                    u32SlotsPerFrame,
                                    Microseconds{structure.slotdurationmicroseconds()},
-                                   Microseconds{structure.slotoverheadmicroseconds()}};
+                                   Microseconds{structure.slotoverheadmicroseconds()},
+                                   structure.beta()};
 
         bHasStructure_ = true;
 

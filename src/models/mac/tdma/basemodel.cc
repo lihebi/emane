@@ -137,9 +137,10 @@ void EMANE::Models::TDMA::BaseModel::processConfiguration(const ConfigurationUpd
 void EMANE::Models::TDMA::BaseModel::notifyScheduleChange(const Frequencies & frequencies,
                                                           std::uint64_t u64BandwidthHz,
                                                           const Microseconds & slotDuration,
-                                                          const Microseconds & slotOverhead)
+                                                          const Microseconds & slotOverhead,
+                                                          float beta)
 {
-  pImpl_->notifyScheduleChange(frequencies,u64BandwidthHz,slotDuration,slotOverhead);
+  pImpl_->notifyScheduleChange(frequencies,u64BandwidthHz,slotDuration,slotOverhead,beta);
 }
 
 

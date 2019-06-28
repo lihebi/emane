@@ -120,7 +120,8 @@ class TDMASchedule(object):
                                'slotoverhead' : int(structure.get('slotoverhead')),
                                'bandwidth' : int(decodeSI(structure.get('bandwidth'))),
                                'slots' : int(structure.get('slots')),
-                               'frames' : int(structure.get('frames'))}
+                               'frames' : int(structure.get('frames')),
+                               'beta': float(structure.get('beta'))}
 
         def nodeDefaults(node):
             frequency = decodeSI(node.get('frequency'));

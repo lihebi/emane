@@ -95,7 +95,8 @@ namespace EMANE
         void notifyScheduleChange(const Frequencies & frequencies,
                                   std::uint64_t u64BandwidthHz,
                                   const Microseconds & slotDuration,
-                                  const Microseconds & slotOverhead) override;
+                                  const Microseconds & slotOverhead,
+                                  float beta) override;
 
         void processSchedulerPacket(DownstreamPacket & pkt) override;
 

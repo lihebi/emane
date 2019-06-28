@@ -47,113 +47,109 @@
 
 namespace EMANE
 {
-  namespace Models
-  {
-    namespace TDMA
-    {
-      /**
+namespace Models
+{
+namespace TDMA
+{
+/**
        * @class BaseModel::Implementation
        *
        * @brief Implementation of BaseModel
        */
-      class BaseModel::Implementation : public MACLayerImplementor,
-                                        public SchedulerUser
-      {
-      public:
-        Implementation(NEMId id,
-                       PlatformServiceProvider *pPlatformServiceProvider,
-                       RadioServiceProvider * pRadioServiceProvider,
-                       Scheduler * pScheduler,
-                       QueueManager * pQueueManager,
-                       MACLayerImplementor * pRadioModel);
+class BaseModel::Implementation : public MACLayerImplementor,
+                                  public SchedulerUser
+{
+public:
+  Implementation(NEMId id,
+                 PlatformServiceProvider *pPlatformServiceProvider,
+                 RadioServiceProvider *pRadioServiceProvider,
+                 Scheduler *pScheduler,
+                 QueueManager *pQueueManager,
+                 MACLayerImplementor *pRadioModel);
 
-        ~Implementation();
+  ~Implementation();
 
-        void initialize(Registrar & registrar) override;
+  void initialize(Registrar &registrar) override;
 
-        void configure(const ConfigurationUpdate & update) override;
+  void configure(const ConfigurationUpdate &update) override;
 
-        void start() override;
+  void start() override;
 
-        void postStart() override;
+  void postStart() override;
 
-        void stop() override;
+  void stop() override;
 
-        void destroy() throw() override;
+  void destroy() throw() override;
 
-        void processUpstreamControl(const ControlMessages & msgs) override;
+  void processUpstreamControl(const ControlMessages &msgs) override;
 
+  void processUpstreamPacket(const CommonMACHeader &hdr,
+                             UpstreamPacket &pkt,
+                             const ControlMessages &msgs) override;
 
-        void processUpstreamPacket(const CommonMACHeader & hdr,
-                                   UpstreamPacket & pkt,
-                                   const ControlMessages & msgs) override;
+  void processDownstreamControl(const ControlMessages &msgs) override;
 
-        void processDownstreamControl(const ControlMessages & msgs) override;
+  void processDownstreamPacket(DownstreamPacket &pkt,
+                               const ControlMessages &msgs) override;
 
+  void processEvent(const EventId &, const Serialization &) override;
 
-        void processDownstreamPacket(DownstreamPacket & pkt,
-                                     const ControlMessages & msgs) override;
+  void processConfiguration(const ConfigurationUpdate &update) override;
 
+  void notifyScheduleChange(const Frequencies &frequencies,
+                            std::uint64_t u64BandwidthHz,
+                            const Microseconds &slotDuration,
+                            const Microseconds &slotOverhead,
+                            float beta) override;
 
-        void processEvent(const EventId &, const Serialization &) override;
+  void processSchedulerPacket(DownstreamPacket &pkt) override;
 
-        void processConfiguration(const ConfigurationUpdate & update) override;
+  void processSchedulerControl(const ControlMessages &msgs) override;
 
-        void notifyScheduleChange(const Frequencies & frequencies,
-                                  std::uint64_t u64BandwidthHz,
-                                  const Microseconds & slotDuration,
-                                  const Microseconds & slotOverhead) override;
+  QueueInfos getPacketQueueInfo() const override;
 
+private:
+  std::unique_ptr<Scheduler> pScheduler_;
+  std::unique_ptr<QueueManager> pQueueManager_;
+  MACLayerImplementor *pRadioModel_;
 
-        void processSchedulerPacket(DownstreamPacket & pkt) override;
+  bool bFlowControlEnable_;
+  std::uint16_t u16FlowControlTokens_;
+  std::string sPCRCurveURI_;
+  TimerEventId transmitTimedEventId_;
+  TxSlotInfo pendingTxSlotInfo_;
+  TimePoint nextMultiFrameTime_;
+  TxSlotInfos txSlotInfos_;
+  Microseconds slotDuration_;
+  Microseconds slotOverhead_;
+  SlotStatusTablePublisher slotStatusTablePublisher_;
+  std::uint64_t u64SequenceNumber_;
+  Frequencies frequencies_;
+  std::uint64_t u64BandwidthHz_;
+  Microseconds neighborMetricUpdateInterval_;
+  PacketStatusPublisherImpl packetStatusPublisher_;
+  NeighborMetricManager neighborMetricManager_;
+  ReceiveManager receiveManager_;
+  FlowControlManager flowControlManager_;
+  std::uint64_t u64ScheduleIndex_;
+  AggregationStatusPublisher aggregationStatusPublisher_;
+  std::uint64_t counter_;
+  std::uint64_t lastQueueLength_[10];
+  std::uint64_t lastLastQueueLength_[10];
+  double lastWeight_[10];
+  double lastLastWeight_[10];
+  double weightT_[10];
 
-        void processSchedulerControl(const ControlMessages & msgs) override;
+  float BETA_ = 0.0;
 
-        QueueInfos getPacketQueueInfo() const override;
+  void sendDownstreamPacket(double dSlotRemainingRatio);
 
-      private:
-        std::unique_ptr<Scheduler> pScheduler_;
-        std::unique_ptr<QueueManager> pQueueManager_;
-        MACLayerImplementor * pRadioModel_;
+  void processTxOpportunity(std::uint64_t u64ScheduleIndex);
 
-        bool bFlowControlEnable_;
-        std::uint16_t u16FlowControlTokens_;
-        std::string sPCRCurveURI_;
-        TimerEventId transmitTimedEventId_;
-        TxSlotInfo pendingTxSlotInfo_;
-        TimePoint  nextMultiFrameTime_;
-        TxSlotInfos txSlotInfos_;
-        Microseconds slotDuration_;
-        Microseconds slotOverhead_;
-        SlotStatusTablePublisher slotStatusTablePublisher_;
-        std::uint64_t u64SequenceNumber_;
-        Frequencies frequencies_;
-        std::uint64_t u64BandwidthHz_;
-        Microseconds neighborMetricUpdateInterval_;
-        PacketStatusPublisherImpl packetStatusPublisher_;
-        NeighborMetricManager neighborMetricManager_;
-        ReceiveManager receiveManager_;
-        FlowControlManager flowControlManager_;
-        std::uint64_t u64ScheduleIndex_;
-        AggregationStatusPublisher aggregationStatusPublisher_;
-        std::uint64_t counter_;
-        std::uint64_t lastQueueLength_ [10];
-        std::uint64_t lastLastQueueLength_ [10];
-        double lastWeight_ [10];
-        double lastLastWeight_ [10];
-        double weightT_ [10];
-
-        const double BETA_ = 0.5;
-
-
-        void sendDownstreamPacket(double dSlotRemainingRatio);
-
-        void processTxOpportunity(std::uint64_t u64ScheduleIndex);
-
-        NEMId getDstByMaxWeight();
-      };
-    }
-  }
-}
+  NEMId getDstByMaxWeight();
+};
+} // namespace TDMA
+} // namespace Models
+} // namespace EMANE
 
 #endif // EMANETDMABASEMODELIMPL_HEADER_

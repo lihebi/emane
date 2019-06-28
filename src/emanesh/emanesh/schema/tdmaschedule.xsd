@@ -127,6 +127,13 @@ POSSIBILITY OF SUCH DAMAGE.
                 </xs:documentation>
               </xs:annotation>
             </xs:attribute>
+            <xs:attribute name='beta' type='xs:decimal' use='required'>
+              <xs:annotation>
+                <xs:documentation>
+                  The beta value for heavyball [0-1).
+                </xs:documentation>
+              </xs:annotation>
+            </xs:attribute>
           </xs:complexType>
         </xs:element>
         <xs:element name="multiframe">

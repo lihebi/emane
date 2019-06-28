@@ -1009,7 +1009,8 @@ void EMANE::Models::TDMA::BaseModel::Implementation::processConfiguration(const 
 void EMANE::Models::TDMA::BaseModel::Implementation::notifyScheduleChange(const Frequencies & frequencies,
                                                                           std::uint64_t u64BandwidthHz,
                                                                           const Microseconds & slotDuration,
-                                                                          const Microseconds & slotOverhead)
+                                                                          const Microseconds & slotOverhead,
+                                                                          float beta)
 {
   LOGGER_STANDARD_LOGGING(pPlatformService_->logService(),
                           DEBUG_LEVEL,
@@ -1019,6 +1020,8 @@ void EMANE::Models::TDMA::BaseModel::Implementation::notifyScheduleChange(const 
 
   // increment index to indicate a schedule change
   ++u64ScheduleIndex_;
+
+  BETA_ = beta;
 
   if(transmitTimedEventId_)
     {
@@ -1446,6 +1449,8 @@ EMANE::NEMId EMANE::Models::TDMA::BaseModel::Implementation::getDstByMaxWeight()
 
       msg.append(":");
       msg.append(std::to_string(weightT_[id] / counter_));
+      msg.append(":");
+      msg.append(std::to_string(ql->second));
 
       // todo: change 110 to txpower - noise
       double snr = EMANE::Utils::DB_TO_MILLIWATT(110-it.getForwardPathlossdB());
