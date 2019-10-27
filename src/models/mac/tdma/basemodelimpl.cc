@@ -1428,7 +1428,7 @@ EMANE::NEMId EMANE::Models::TDMA::BaseModel::Implementation::getDstByMaxWeight()
       msg.append(std::to_string(id));
       if (ql == qls.end())
       {
-        msg.append(":0");
+        msg.append(":0:0");
         continue;
       }
 
