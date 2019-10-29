@@ -1,3 +1,4 @@
 SUBDIRS= phyapitest \
          timinganalysis \
-         commeffect
+         commeffect \
+         heavyball
