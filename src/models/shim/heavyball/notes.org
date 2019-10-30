@@ -1,0 +1,136 @@
+#+TITLE: Implementation notes
+
+
+* About shim layer
+
+
+Shim layer is not a plugin layer. It is a kind of a MAC layer, without
+PHY layer. A shim layer is used in a NEM only with transport layer, it
+cannot be used with PHY layer.
+
+The platform nem is:
+#+BEGIN_SRC xml
+<nem type="unstructured">
+  <transport definition="transvirtual.xml"/>
+  <shim definition="commeffectshim.xml"/>
+</nem>
+#+END_SRC
+
+where shim itself is:
+#+BEGIN_SRC xml
+<shim library="commeffectshim">
+ <param name="defaultconnectivity" value="off" />
+ <param name="enablepromiscuousmode" value="off" />
+</shim>
+#+END_SRC
+
+There are three shim layers as references:
+- Comm-Effect-Model (src/models/shim/commeffect)
+  https://github.com/adjacentlink/emane/wiki/Comm-Effect-Model
+- src/models/shim/phyapitest
+- src/models/shim/timinganalysis
+
+To see a centralized view of inheritance of the classes:
+https://adjacentlink.com/documentation/emane/v1.2.1/classEMANE_1_1NEMLayer.html
+
+* Alternative approach: custom heavy-ball MAC layer
+
+This would be an alternative to TDMA, with custom routing. You would
+use <mac library="heavy-ball"/> instead of tdma when you build your
+NEM, and the scheduling would be in effect.
+
+I'll need the pathloss event. If the event can be captured by
+heavy-ball MAC layer, great. Otherwise, I would *have to* use the PHY
+layer modifier pathlossholder.
+
+For dynamic mgen, the current socket way should be fine, especially we
+are using our special MAC layer for scheduling, it should be fine to
+support this behavior. There is another way to plug-in external
+transport layer
+- TransportBuilder:
+  https://adjacentlink.com/documentation/emane/v1.2.1/classEMANE_1_1Application_1_1TransportBuilder.html
+- Event Generators: this is used to pass from outside world into
+  emane. This is not very useful, as there is no control to pass in,
+  mgen can just directly send in traffic.
+- Event Agents: turn EMANE events into usable forms suitable for
+  processing by applications outside of the emulator. So this is more
+  interesting. I'll basically wrap the change of state and queue
+  length as events, and pass out, and received by mgen. This is
+  essentially a more elegent way than using socket.
+  - GPSD Location Agent is an example.
+
+* heavy-ball scheduler
+
+** schedule strategy
+
+Implementing as a shim layer? Then how to do forwarding strategy? It
+should be in the same place as TDMA layer.
+
+Or, I can have a shim layer to just do the scheduling?
+
+It is implemented as a special strategy in sendDownstreamPacket. It
+calls getDstByMaxWeight to select the right destination NEM.
+
+*** dynamic beta values
+
+- TDMA Mac layer receive notifyScheduleChange with the new beta
+  value. This is actually not very important, as beta value can be
+  fixed, there is no need to dynamically change it.
+  - I probably don't want to add it, because this require the slot
+    structure and xml schema change. It should be modeled in
+    heavy-ball's own shim layer. That also means it cannot be
+    dynamically changed, but who cares.
+
+** TDMA get priority quene length
+- TDMA get priority quene length. If I want to avoid modifying TDMA
+  implementation, how can I get this? BTW why we cannot modify TDMA
+  MAC layer? Or just get a new subclass of TDMA? What is the position
+  of heavy-ball? It should be orthogonal to TDMA layer, because it is
+  just an scheduling strategy.
+
+** Pathloss hijack from FrameworkPHY
+
+passloss hijack of frameworkPHY. This is inside
+FrameworkPHY::processEvent, matching Events::PathlossEvent. So is this
+event only available in PHY layer? I see ShimLayer also has
+processEvent, which is originally inherited from EventServiceUser to
+NEMLayer.
+
+Currently the hijack is implemented as a global variable for holding
+it from PHY, and access it from TDMA MAC layer. Global variable !!!
+
+In FrameworkPHY::initialize, there is
+
+#+BEGIN_SRC cpp
+  auto & eventRegistrar = registrar.eventRegistrar();
+  eventRegistrar.registerEvent(Events::PathlossEvent::IDENTIFIER);
+#+END_SRC
+
+Thus I probably just use a shim layer and regiseter this pathloss
+event. The potential problem is, will this event be hijacked by phy
+layer? There does not seem to be a lot of event registration, and no
+overlap. Here are all of them:
+
+#+begin_example
+File: src/agents/gpsdlocation/agent.cc
+78:3:  eventRegistrar.registerEvent(Events::LocationEvent::IDENTIFIER);
+
+File: src/libemane/frameworkphy.cc
+260:3:  eventRegistrar.registerEvent(Events::PathlossEvent::IDENTIFIER);
+262:3:  eventRegistrar.registerEvent(Events::LocationEvent::IDENTIFIER);
+264:3:  eventRegistrar.registerEvent(Events::AntennaProfileEvent::IDENTIFIER);
+266:3:  eventRegistrar.registerEvent(Events::FadingSelectionEvent::IDENTIFIER);
+
+File: src/models/shim/commeffect/shim.cc
+164:3:  eventRegistrar.registerEvent(Events::CommEffectEvent::IDENTIFIER);
+
+File: src/models/mac/tdma/eventscheduler/eventscheduler.cc
+100:3:  eventRegistrar.registerEvent(Events::TDMAScheduleEvent::IDENTIFIER);
+
+File: src/models/mac/ieee80211abg/maclayer.cc
+183:3:  eventRegistrar.registerEvent(OneHopNeighborsEvent::IDENTIFIER);
+#+end_example
+
+More documents:
+- event service: https://adjacentlink.com/documentation/emane/v1.0.1/EventService.html
+- FrameworkPHY: https://adjacentlink.com/documentation/emane/v1.0.1/EmulatorPhysicalLayer.html

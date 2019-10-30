@@ -1,0 +1,20 @@
+#+TITLE: Heavy ball implementation as Shim layer
+
+* Introduction
+
+This implements the heavy-ball scheduler layer as a Shim layer. It
+includes three major parts:
+
+- It should register and process the pathloss event, and record as
+  channel state.
+
+- It should implements the TDMA scheduler logic, i.e. maintaining
+  queues of messages and deciding which is processed next. The
+  heavy-ball schedule algorithm comes into play for this decision.
+
+- It should be able to communicate current queue length and channel
+  state to the outside traffic generator for congestion control. This
+  traffic generator currently means the dynamic mgen implemented in
+  the [[https://github.com/lihebi/heavy-ball][heavy-ball
+  front-end]]. The current strategy is using a system socket, which
+  should be fine.
