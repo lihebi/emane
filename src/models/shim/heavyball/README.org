@@ -18,3 +18,11 @@ includes three major parts:
   the [[https://github.com/lihebi/heavy-ball][heavy-ball
   front-end]]. The current strategy is using a system socket, which
   should be fine.
+
+
+This is extracted from
+[[https://github.com/zehuali/emane/commits/tdma-develop][Zehua's
+modification of emane]], the notable differences:
+- Implement as a stand-alone shim layer, instead of modifying existing
+  TDMA MAC layer.
+- Does not require modification to the PHY layer to get the pathloss
