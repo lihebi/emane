@@ -103,6 +103,7 @@ src/models/shim/commeffect/commeffectfilters.xml
 src/models/shim/commeffect/commeffectnem.xml
 src/models/shim/commeffect/commeffectshim.xml
 src/models/shim/phyapitest/phyapitestshim.xml
+src/models/shim/heavyball/heavyballshim.xml
 src/models/shim/timinganalysis/timinganalysisshim.xml
 src/transports/raw/transraw.xml
 src/transports/virtual/transvirtual.xml

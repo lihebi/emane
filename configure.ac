@@ -230,6 +230,7 @@ AC_OUTPUT(
  src/models/shim/timinganalysis/Makefile
  src/models/shim/phyapitest/Makefile
  src/models/shim/commeffect/Makefile
+ src/models/shim/heavyball/Makefile
  src/agents/Makefile
  src/agents/gpsdlocation/Makefile
  src/generators/Makefile
