@@ -227,7 +227,7 @@ namespace EMANE {
             // some non-important msg construction
             if (msg != "") {
               msg.append(",");}
-            // HEBI: which node is sending the event
+            // get which node is sending the event
             auto id = it.getNEMId();
             auto ql = qls.find(id);
             msg.append(std::to_string(id));
@@ -265,18 +265,15 @@ namespace EMANE {
             // double score = log2(1.0 + snr) * ql->second;
             double score = log2(1.0 + snr) * weight;
 
-            // (HEBI: set the id for return) if the score is the
-            // largest. This is inside the loop, thus done for all pathloss
-            // events in the holder.
+            // Set the id for return, if the score is the
+            // largest. This is inside the loop, thus done for all
+            // pathloss events in the holder.
             if (score > maxScore) {
               nemId = id;
               maxScore = score;}
           }
 
           // create socket and ready for send data out.
-          //
-          // and the counter is reset to 0. WTF. This counter_ is
-          // completely useless.
           for (int i = 0; i < 10; i++) {
               m_weightT[i] = 0;}
           int sock_fd = -1;
@@ -285,11 +282,6 @@ namespace EMANE {
           char buf[1000];
           int recvbytes, sendbytes, len;
 
-          // in_addr_t server_ip = inet_addr("127.0.0.1");
-          // in_port_t server_port = 10036;
-
-          // FIXME write msg. But no further msg is written, how to get more data?
-          //
           // This socket is created by client emane.
           std::string fifo = "/tmp/emane-mgen_fifo_node" + std::to_string(id_);
           int fd = open(fifo.c_str(), O_WRONLY);
